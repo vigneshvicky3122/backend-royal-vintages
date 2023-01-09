@@ -583,13 +583,11 @@ router.post("/order", authentication, async (req, res) => {
     console.log(error);
   }
 });
-router.post("/verify", authentication, async (req, res) => {
+router.post("/verify/:id", authentication, async (req, res) => {
   await Client.connect();
   try {
     const {
       response: { razorpay_order_id, razorpay_payment_id, razorpay_signature },
-
-      orderId,
     } = req.body;
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
@@ -602,7 +600,7 @@ router.post("/verify", authentication, async (req, res) => {
       let addToCart = await db
         .collection(process.env.DB_COLLECTION_THREE)
         .findOneAndUpdate(
-          { _id: ObjectId(orderId) },
+          { _id: ObjectId(req.params.id) },
           {
             $set: {
               paymentId: razorpay_payment_id,
