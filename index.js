@@ -25,7 +25,7 @@ router.get("/Dashboard", authentication, async (req, res) => {
   await Client.connect();
 
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let products = await db
       .collection(process.env.DB_COLLECTION_ONE)
       .find()
@@ -60,7 +60,7 @@ router.get("/product/:id", authentication, async (req, res) => {
   await Client.connect();
 
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let products = await db
       .collection(process.env.DB_COLLECTION_ONE)
       .find({ _id: ObjectId(req.params.id) })
@@ -88,7 +88,7 @@ router.get("/product/:id", authentication, async (req, res) => {
 });
 router.get("/orders", authentication, async (req, res) => {
   await Client.connect();
-  const db = await Client.db(process.env.DB_NAME);
+  const db = Client.db(process.env.DB_NAME);
   try {
     if (req.headers.user === "6389f63fb128d4871a0dc445") {
       let orders = await db
@@ -137,7 +137,7 @@ router.get("/buyProduct/:id", authentication, async (req, res) => {
   await Client.connect();
 
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let products = await db
       .collection(process.env.DB_COLLECTION_THREE)
       .find({ _id: ObjectId(req.params.id) })
@@ -168,7 +168,7 @@ router.get("/buyProduct/:id", authentication, async (req, res) => {
 router.get("/MyCart", authentication, async (req, res) => {
   await Client.connect();
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let user = await db
       .collection(process.env.DB_COLLECTION_TWO)
       .find({ _id: ObjectId(req.headers.user) })
@@ -309,7 +309,7 @@ router.put("/removeFromCart", authentication, async (req, res) => {
 router.post("/signup", async (req, res) => {
   await Client.connect();
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let users = await db
       .collection(process.env.DB_COLLECTION_TWO)
       .find({ email: req.body.email })
@@ -353,7 +353,7 @@ router.post("/login", async (req, res) => {
   await Client.connect();
 
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let user = await db
       .collection(process.env.DB_COLLECTION_TWO)
       .find({ email: req.body.email })
@@ -403,7 +403,7 @@ router.post("/address", authentication, async (req, res) => {
   await Client.connect();
   try {
     const result = await uploadFile(req.body.Files);
-    console.log(result);
+
     const shippingAddress = {
       Name: req.body.Name,
       Email: req.body.Email,
@@ -442,7 +442,7 @@ router.post("/address", authentication, async (req, res) => {
 router.post("/checkout", authentication, async (req, res) => {
   await Client.connect();
   try {
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let product = await db
       .collection(process.env.DB_COLLECTION_ONE)
       .find({ _id: ObjectId(req.body.productId) })
@@ -489,7 +489,7 @@ router.put("/addProducts/:id", authentication, async (req, res) => {
   try {
     const result = await uploadFile(req.body.Image);
 
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let NewProduct = await db
       .collection(process.env.DB_COLLECTION_ONE)
       .findOneAndUpdate(
@@ -534,7 +534,7 @@ router.post("/addProducts", authentication, async (req, res) => {
       Features: req.body.Features,
       Image: process.env.AWS_CLOUDFRONT_KEY + result.Key,
     };
-    const db = await Client.db(process.env.DB_NAME);
+    const db = Client.db(process.env.DB_NAME);
     let NewProduct = await db
       .collection(process.env.DB_COLLECTION_ONE)
       .insertOne(updateData);
@@ -566,7 +566,7 @@ router.post("/order", authentication, async (req, res) => {
     });
 
     const options = {
-      amount: req.body.amount * 100,
+      amount: req.body.amount,
       currency: "INR",
       receipt: crypto.randomBytes(10).toString("hex"),
     };
@@ -586,27 +586,28 @@ router.post("/order", authentication, async (req, res) => {
 router.post("/verify/:id", authentication, async (req, res) => {
   await Client.connect();
   try {
-    const {
-      response: { razorpay_order_id, razorpay_payment_id, razorpay_signature },
-    } = req.body;
-    const sign = razorpay_order_id + "|" + razorpay_payment_id;
+    const sign =
+      req.body.response.razorpay_order_id +
+      "|" +
+      req.body.response.razorpay_payment_id;
     const expectedSign = crypto
-      .createHmac("sha256", process.env.RAZOR_PAY_kEY)
+      .createHmac("sha256", process.env.RAZOR_PAY_KEY)
       .update(sign.toString())
       .digest("hex");
-
-    if (razorpay_signature === expectedSign) {
-      const db = await Client.db(process.env.DB_NAME);
+    console.log(expectedSign);
+    console.log(req.body.response.razorpay_signature);
+    if (req.body.response.razorpay_signature === expectedSign) {
+      const db = Client.db(process.env.DB_NAME);
       let addToCart = await db
         .collection(process.env.DB_COLLECTION_THREE)
         .findOneAndUpdate(
           { _id: ObjectId(req.params.id) },
           {
             $set: {
-              paymentId: razorpay_payment_id,
-              razorpayOrderId: razorpay_order_id,
+              paymentId: req.body.response.razorpay_payment_id,
+              razorpayOrderId: req.body.response.razorpay_order_id,
               paymentStatus: "Success",
-              paymentSignature: razorpay_signature,
+              paymentSignature: req.body.response.razorpay_signature,
             },
           }
         );
